@@ -139,9 +139,12 @@ BEGIN
            OR NEW.status NOT IN ('approved', 'cancelled') THEN
             RAISE EXCEPTION 'SECURITY_VIOLATION: immutable leave request fields or invalid transition';
         END IF;
-        IF NOT (auth.uid() = ANY(OLD.recipient_ids)
-                AND public.auth_is_school_workflow_staff(OLD.school_id, auth.uid())) THEN
-            RAISE EXCEPTION 'SECURITY_VIOLATION: only authorized recipients may decide leave requests';
+        IF NOT (
+            (auth.uid() = ANY(OLD.recipient_ids)
+             AND public.auth_is_school_workflow_staff(OLD.school_id, auth.uid()))
+            OR public.auth_is_manager_of_school(OLD.school_id)
+        ) THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: only authorized recipients or the school manager may decide leave requests';
         END IF;
         IF NEW.status = 'approved' THEN
             NEW.approved_by := auth.uid();
