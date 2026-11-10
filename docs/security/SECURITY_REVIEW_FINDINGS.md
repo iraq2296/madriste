@@ -19,9 +19,10 @@ Status: Static review only. No SQL has been executed. No database was connected.
 
 ### F-02 — Leave request school and recipient integrity is not enforced
 - Severity: High
-- Evidence: migration 005 validates that the caller is a linked parent of the student, but does not prove that NEW.school_id belongs to that student or that every NEW.recipient_ids entry is an authorized staff member of that school.
-- A client can submit inconsistent school/recipient metadata. The update guard does require the deciding actor to be authorized staff, which reduces direct approval abuse, but does not repair incorrect routing or disclosure.
-- Required action: derive or validate the school from the student's approved membership and validate recipients against that same school at INSERT. Define how a student linked to multiple schools is handled.
+- Status: **Addressed in proposal by migration 006; not database-verified.**
+- Migration 006 requires an approved parent-child link for the exact parent, student, and school tuple, requires a non-empty recipient list, and checks every recipient is authorized staff for that school.
+- It also freezes attachment metadata after creation and permits parent cancellation only while pending.
+- Required validation: test wrong-school submissions, empty recipients, unauthorized recipients, parent cancellation, parent approval denial, and staff approval authorization.
 
 ### F-03 — Parent-link workflow has privacy and approver-integrity questions
 - Severity: Medium
@@ -72,3 +73,9 @@ Status: Static review only. No SQL has been executed. No database was connected.
 4. Add SQL integration tests for every role and school boundary.
 5. Inspect grants, function ownership, views, triggers, and storage policies.
 6. Only then prepare a draft pull request for human review. Merge/deploy requires explicit owner approval.
+
+
+## Update after migration 006 (2026-11-10)
+- Added `supabase/migrations/006_membership_invites_and_leave_integrity.sql`.
+- F-01 and F-02 have proposed code changes, but remain open as release gates until PostgreSQL execution and integration tests pass.
+- Migration 006 has not been executed. No merge, deployment, or production changes have occurred.
