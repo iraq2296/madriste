@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- MADRASI — مَدرَستي
--- Migration 001: Core Database Schema (28 Tables)
+-- Migration 001: Core Database Schema (29 Tables)
 -- Architecture: Multi-tenant by School with Strict Foreign Keys
 -- Compatible with PostgreSQL 15+ / Supabase
 -- ==============================================================================
@@ -109,6 +109,68 @@ DO $$ BEGIN
         CHECK (badge_verified = FALSE OR role IN ('manager', 'teacher', 'instructor', 'superAdmin'));
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 
+-- Trigger: Strictly protect role elevation and administrative status fields
+CREATE OR REPLACE FUNCTION protect_profile_sensitive_fields()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_caller_role user_role;
+BEGIN
+    -- Check if current authenticated caller is superAdmin
+    SELECT role INTO v_caller_role FROM profiles WHERE id = auth.uid();
+
+    -- On INSERT:
+    IF TG_OP = 'INSERT' THEN
+        -- Only an existing superAdmin can create a superAdmin profile
+        IF NEW.role = 'superAdmin' AND (v_caller_role IS DISTINCT FROM 'superAdmin') THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Unauthorized role assignment: superAdmin.';
+        END IF;
+        -- Regular signup cannot self-grant verified blue badges or active status overrides
+        IF v_caller_role IS DISTINCT FROM 'superAdmin' THEN
+            NEW.badge_verified := FALSE;
+            NEW.verification := 'pending';
+            NEW.status := 'active';
+            NEW.status_reason := NULL;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- On UPDATE:
+    IF TG_OP = 'UPDATE' THEN
+        -- Allow full administrative updates if caller is verified superAdmin
+        IF v_caller_role = 'superAdmin' THEN
+            RETURN NEW;
+        END IF;
+
+        -- Non-superAdmin users CANNOT change their role
+        IF NEW.role IS DISTINCT FROM OLD.role THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Users are strictly forbidden from modifying their own role.';
+        END IF;
+
+        -- Non-superAdmin users CANNOT change verified blue badge status
+        IF NEW.badge_verified IS DISTINCT FROM OLD.badge_verified THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Users cannot self-grant verified blue badges.';
+        END IF;
+
+        -- Non-superAdmin users CANNOT change verification workflow state
+        IF NEW.verification IS DISTINCT FROM OLD.verification THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Users cannot self-modify their identity verification status.';
+        END IF;
+
+        -- Non-superAdmin users CANNOT change account status (active/disabled/blocked)
+        IF NEW.status IS DISTINCT FROM OLD.status OR NEW.status_reason IS DISTINCT FROM OLD.status_reason THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Users cannot change their account status or suspension reason.';
+        END IF;
+
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_fields ON profiles;
+CREATE TRIGGER trg_protect_profile_fields
+BEFORE INSERT OR UPDATE ON profiles
+FOR EACH ROW EXECUTE FUNCTION protect_profile_sensitive_fields();
+
 -- ------------------------------------------------------------------------------
 -- 3. SCHOOLS & ACADEMIC YEARS (TABLES 2, 3, 4, 5)
 -- ------------------------------------------------------------------------------
@@ -174,6 +236,50 @@ CREATE TABLE IF NOT EXISTS school_memberships (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_user_school_membership UNIQUE (user_id, school_id)
 );
+
+-- Trigger: Strictly enforce initial pending state and prevent self-approval or self-assigned roles
+CREATE OR REPLACE FUNCTION enforce_membership_initial_state()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_caller_role user_role;
+    v_is_school_mgr BOOLEAN;
+BEGIN
+    SELECT role INTO v_caller_role FROM profiles WHERE id = auth.uid();
+    SELECT EXISTS (SELECT 1 FROM schools WHERE id = NEW.school_id AND manager_id = auth.uid()) INTO v_is_school_mgr;
+
+    -- On INSERT:
+    IF TG_OP = 'INSERT' THEN
+        -- If caller is not superAdmin or school manager:
+        IF NOT (v_caller_role = 'superAdmin' OR v_is_school_mgr) THEN
+            -- Force user_id to be the authenticated caller
+            NEW.user_id := auth.uid();
+            -- Force status to be pending
+            NEW.status := 'pending';
+            -- Force role to strictly match user's true verified profile role
+            SELECT role INTO NEW.role FROM profiles WHERE id = auth.uid();
+            -- Clear assigned classes/subjects on initial join request
+            NEW.class_group_ids := '{}';
+            NEW.subject_ids := '{}';
+            NEW.via_invite := FALSE;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- On UPDATE:
+    IF TG_OP = 'UPDATE' THEN
+        -- Only school manager or super admin can approve memberships or assign classes
+        IF NOT (v_caller_role = 'superAdmin' OR v_is_school_mgr) THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: Only the school manager or super admin can approve memberships or assign classes.';
+        END IF;
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+DROP TRIGGER IF EXISTS trg_membership_safety ON school_memberships;
+CREATE TRIGGER trg_membership_safety
+BEFORE INSERT OR UPDATE ON school_memberships
+FOR EACH ROW EXECUTE FUNCTION enforce_membership_initial_state();
 
 CREATE TABLE IF NOT EXISTS teacher_follows (
     student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -449,7 +555,7 @@ CREATE TABLE IF NOT EXISTS manual_extensions (
 );
 
 -- ------------------------------------------------------------------------------
--- 10. SECURITY, AUDIT & SESSIONS (TABLES 27, 28)
+-- 10. SECURITY, AUDIT & SESSIONS (TABLES 28, 29)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS device_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -462,15 +568,33 @@ CREATE TABLE IF NOT EXISTS device_sessions (
 );
 
 -- Trigger: Limit to max 2 simultaneous devices per account
+-- Concurrency-Safe: Serializes concurrent device registrations per user via row-level lock
+-- and atomically evicts the oldest session to guarantee strictly <= 2 devices.
 CREATE OR REPLACE FUNCTION check_device_limit()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_count INT;
 BEGIN
-    IF (SELECT COUNT(*) FROM device_sessions WHERE user_id = NEW.user_id) >= 2 THEN
-        RAISE EXCEPTION 'DEVICE_LIMIT_REACHED: Maximum 2 devices permitted simultaneously.';
+    -- 1. Serialize concurrent logins for this user using an exclusive row lock on profiles
+    PERFORM 1 FROM profiles WHERE id = NEW.user_id FOR UPDATE;
+
+    -- 2. Count active devices under exclusive lock
+    SELECT COUNT(*) INTO v_count FROM device_sessions WHERE user_id = NEW.user_id;
+
+    -- 3. If 2 or more devices exist, evict the oldest device atomically
+    IF v_count >= 2 THEN
+        DELETE FROM device_sessions 
+        WHERE id = (
+            SELECT id FROM device_sessions 
+            WHERE user_id = NEW.user_id 
+            ORDER BY last_active ASC 
+            LIMIT 1
+        );
     END IF;
+
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS trg_device_limit ON device_sessions;
 CREATE TRIGGER trg_device_limit

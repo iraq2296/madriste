@@ -5,7 +5,8 @@
 -- in Development or Staging environments.
 -- ==============================================================================
 
--- 1. DROP RLS POLICIES & FUNCTIONS
+-- 1. DROP VIEWS, RLS POLICIES & FUNCTIONS
+DROP VIEW IF EXISTS public_profiles CASCADE;
 DROP FUNCTION IF EXISTS auth_user_role() CASCADE;
 DROP FUNCTION IF EXISTS auth_is_super_admin() CASCADE;
 DROP FUNCTION IF EXISTS auth_is_member_of_school(UUID) CASCADE;
@@ -15,7 +16,13 @@ DROP FUNCTION IF EXISTS auth_is_linked_parent_of(UUID) CASCADE;
 DROP FUNCTION IF EXISTS auth_has_active_subscription() CASCADE;
 
 -- 2. DROP TRIGGERS
-DROP TRIGGER IF EXISTS trg_device_limit ON device_sessions;
+DROP TRIGGER IF EXISTS trg_protect_profile_fields ON profiles CASCADE;
+DROP FUNCTION IF EXISTS protect_profile_sensitive_fields() CASCADE;
+
+DROP TRIGGER IF EXISTS trg_membership_safety ON school_memberships CASCADE;
+DROP FUNCTION IF EXISTS enforce_membership_initial_state() CASCADE;
+
+DROP TRIGGER IF EXISTS trg_device_limit ON device_sessions CASCADE;
 DROP FUNCTION IF EXISTS check_device_limit() CASCADE;
 
 -- 3. DROP TABLES (IN REVERSE FOREIGN KEY DEPENDENCY ORDER)

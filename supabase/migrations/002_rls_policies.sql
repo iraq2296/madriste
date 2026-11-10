@@ -8,13 +8,14 @@
 
 -- ------------------------------------------------------------------------------
 -- 1. TRUSTED SECURITY HELPER FUNCTIONS (SECURITY DEFINER)
+-- Hardened with explicit search_path and restricted execute permissions
 -- ------------------------------------------------------------------------------
 
 -- Get current authenticated user's verified role directly from the profiles table
 CREATE OR REPLACE FUNCTION auth_user_role()
 RETURNS user_role AS $$
     SELECT role FROM profiles WHERE id = auth.uid();
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Check if current authenticated user is Super Admin
 CREATE OR REPLACE FUNCTION auth_is_super_admin()
@@ -22,7 +23,7 @@ RETURNS BOOLEAN AS $$
     SELECT EXISTS (
         SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'superAdmin'
     );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Check if current authenticated user is an approved member of a given school
 CREATE OR REPLACE FUNCTION auth_is_member_of_school(p_school_id UUID)
@@ -33,7 +34,7 @@ RETURNS BOOLEAN AS $$
           AND school_id = p_school_id 
           AND status = 'approved'
     );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Get current user's role in a specific school (e.g. for multi-school teachers)
 CREATE OR REPLACE FUNCTION auth_user_school_role(p_school_id UUID)
@@ -43,7 +44,7 @@ RETURNS user_role AS $$
       AND school_id = p_school_id 
       AND status = 'approved'
     LIMIT 1;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Check if current user is the manager of a given school
 CREATE OR REPLACE FUNCTION auth_is_manager_of_school(p_school_id UUID)
@@ -53,7 +54,7 @@ RETURNS BOOLEAN AS $$
         WHERE id = p_school_id 
           AND manager_id = auth.uid()
     );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Check if current user is an approved linked parent of a given student
 CREATE OR REPLACE FUNCTION auth_is_linked_parent_of(p_student_id UUID)
@@ -64,7 +65,7 @@ RETURNS BOOLEAN AS $$
           AND student_id = p_student_id 
           AND status = 'approved'
     );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Check if current user has an active, usable subscription (or is student/parent)
 CREATE OR REPLACE FUNCTION auth_has_active_subscription()
@@ -85,7 +86,29 @@ BEGIN
           AND ends_at > NOW()
     );
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Revoke default public execution and grant to authenticated role only
+REVOKE ALL ON FUNCTION auth_user_role() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_user_role() TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_is_super_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_is_super_admin() TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_is_member_of_school(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_is_member_of_school(UUID) TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_user_school_role(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_user_school_role(UUID) TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_is_manager_of_school(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_is_manager_of_school(UUID) TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_is_linked_parent_of(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_is_linked_parent_of(UUID) TO authenticated;
+
+REVOKE ALL ON FUNCTION auth_has_active_subscription() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION auth_has_active_subscription() TO authenticated;
 
 -- ------------------------------------------------------------------------------
 -- 2. ENABLE RLS ON ALL TABLES
@@ -121,12 +144,41 @@ ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------------------------
--- 3. PROFILES POLICIES
+-- 3. PROFILES POLICIES & PRIVACY PROTECTION
 -- ------------------------------------------------------------------------------
+-- Full record containing phone number and administrative status is strictly private.
+-- Only the user themselves, superAdmin, or an authorized school manager can read it.
 DROP POLICY IF EXISTS p_profiles_select ON profiles;
 CREATE POLICY p_profiles_select ON profiles FOR SELECT USING (
-    id = auth.uid() OR auth_is_super_admin() OR status = 'active'
+    id = auth.uid() 
+    OR auth_is_super_admin() 
+    OR EXISTS (
+        SELECT 1 FROM school_memberships sm 
+        JOIN schools s ON s.id = sm.school_id 
+        WHERE sm.user_id = profiles.id 
+          AND s.manager_id = auth.uid() 
+          AND sm.status = 'approved'
+    )
 );
+
+-- Public Directory View: Safe for student/teacher colleague lookups.
+-- Completely strips phone numbers, status reasons, and private account metadata.
+CREATE OR REPLACE VIEW public_profiles AS
+SELECT 
+    id,
+    full_name,
+    role,
+    photo_url,
+    badge_verified,
+    governorate,
+    specialization,
+    subject_ids,
+    teacher_code,
+    created_at
+FROM profiles
+WHERE status = 'active';
+
+GRANT SELECT ON public_profiles TO authenticated;
 
 DROP POLICY IF EXISTS p_profiles_insert ON profiles;
 CREATE POLICY p_profiles_insert ON profiles FOR INSERT WITH CHECK (
@@ -195,10 +247,10 @@ CREATE POLICY p_memberships_select ON school_memberships FOR SELECT USING (
     OR auth_is_super_admin()
 );
 
--- Users can submit their own join requests
+-- Users can submit their own join requests (strictly forced to status = 'pending')
 DROP POLICY IF EXISTS p_memberships_insert ON school_memberships;
 CREATE POLICY p_memberships_insert ON school_memberships FOR INSERT WITH CHECK (
-    user_id = auth.uid()
+    user_id = auth.uid() AND status = 'pending'
 );
 
 -- Only the school manager or super admin can approve/reject membership
