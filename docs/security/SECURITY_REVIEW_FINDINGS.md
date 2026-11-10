@@ -87,3 +87,15 @@ Status: Static review only. No SQL has been executed. No database was connected.
 - F-04: proposed authenticated directory RPC returns an explicit allowlist of profile fields and omits phone and private verification/status metadata. The old `public_profiles` view remains security_invoker; application reads must be migrated to the RPC and tested.
 - Both findings remain open as release gates until SQL is executed in a disposable database, grants/ownership are inspected, and positive/negative integration tests pass.
 - No migration has been executed; no PR, merge, deployment, or production database change has occurred.
+
+
+## Update after migration 008 (2026-11-10)
+- Added `supabase/migrations/008_conversation_participant_integrity.sql`.
+- Conversation creation now proposes requiring a non-null school, at least two distinct participants, caller inclusion, and an active school relationship for every participant.
+- Eligible participants are proposed as the school manager, approved school members (student/teacher/instructor/manager), or a parent with an approved link to a child in that school.
+- A private server predicate validates arbitrary participant IDs inside triggers; a separate RLS wrapper can evaluate only `auth.uid()`. The wrapper is granted to authenticated because RLS expressions execute with caller privileges.
+- Message insertion proposes enforcing `sender_id = auth.uid()`, resetting client-supplied timestamps, and initializing `read_by` to the sender only.
+- Client-side UPDATE/DELETE for conversations and messages remains intentionally unavailable. Read receipts need a dedicated audited workflow before enabling updates.
+- Important product limitation: this first hardening proposal allows any eligible school participant to be included in a same-school group conversation. It does not yet encode finer role-to-role messaging rules, invitation/consent acceptance, or blocking. Those require explicit product policy.
+- F-08 is addressed in proposal only; it remains a release gate pending disposable-DB execution, policy/trigger tests, and review of function ownership/grants.
+- No migration executed, no PR/merge/deploy, and no production database changed.
