@@ -430,3 +430,4 @@ DROP POLICY IF EXISTS p_devices_modify ON device_sessions;
 CREATE POLICY p_devices_modify ON device_sessions FOR ALL USING (
     user_id = auth.uid()
 );
+

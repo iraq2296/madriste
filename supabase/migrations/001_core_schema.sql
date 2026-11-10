@@ -485,3 +485,4 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     reason TEXT,
     at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+

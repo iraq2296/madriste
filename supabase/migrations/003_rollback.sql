@@ -67,3 +67,4 @@ DROP TYPE IF EXISTS school_status CASCADE;
 DROP TYPE IF EXISTS account_status CASCADE;
 DROP TYPE IF EXISTS verification_status CASCADE;
 DROP TYPE IF EXISTS user_role CASCADE;
+

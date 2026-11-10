@@ -88,3 +88,4 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO grade_entries (id, student_id, school_id, subject_id, teacher_id, year_id, exam_type, title, score, max_score) VALUES
   ('f2222222-ffff-2222-ffff-222222222222', '66666666-6666-6666-6666-666666666666', 'b2222222-bbbb-2222-bbbb-222222222222', 'sub-math', '33333333-3333-3333-3333-333333333333', 'c2222222-cccc-2222-cccc-222222222222', 'monthly', 'امتحان الشهر الأول - حساب', 88.0, 100.0)
 ON CONFLICT (id) DO NOTHING;
+
