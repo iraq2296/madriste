@@ -79,3 +79,11 @@ Status: Static review only. No SQL has been executed. No database was connected.
 - Added `supabase/migrations/006_membership_invites_and_leave_integrity.sql`.
 - F-01 and F-02 have proposed code changes, but remain open as release gates until PostgreSQL execution and integration tests pass.
 - Migration 006 has not been executed. No merge, deployment, or production changes have occurred.
+
+
+## Update after migration 007 (2026-11-10)
+- Added `supabase/migrations/007_private_staff_validation_and_safe_directory.sql`.
+- F-03: proposed replacement separates a private arbitrary-user staff predicate (not executable by client roles) from a client-callable helper that evaluates only `auth.uid()`. Parent-link and leave-request triggers use the private predicate to validate chosen approvers/recipients.
+- F-04: proposed authenticated directory RPC returns an explicit allowlist of profile fields and omits phone and private verification/status metadata. The old `public_profiles` view remains security_invoker; application reads must be migrated to the RPC and tested.
+- Both findings remain open as release gates until SQL is executed in a disposable database, grants/ownership are inspected, and positive/negative integration tests pass.
+- No migration has been executed; no PR, merge, deployment, or production database change has occurred.
