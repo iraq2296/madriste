@@ -50,6 +50,20 @@ $$;
 REVOKE ALL ON FUNCTION public.private_can_participate_in_school_chat(uuid, uuid)
 FROM PUBLIC, anon, authenticated;
 
+-- Safe RLS wrapper: it can only evaluate the caller's own eligibility.
+CREATE OR REPLACE FUNCTION public.auth_can_current_user_participate_in_school_chat(
+    p_school_id uuid
+) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = ''
+AS $
+    SELECT public.private_can_participate_in_school_chat(p_school_id, auth.uid());
+$;
+REVOKE ALL ON FUNCTION public.auth_can_current_user_participate_in_school_chat(uuid)
+FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.auth_can_current_user_participate_in_school_chat(uuid)
+TO authenticated;
+
 -- Validate the full participant list, not merely the caller's presence.
 CREATE OR REPLACE FUNCTION public.guard_conversation_participants()
 RETURNS trigger
@@ -155,7 +169,7 @@ CREATE POLICY p_convs_insert ON public.conversations
 FOR INSERT WITH CHECK (
     school_id IS NOT NULL
     AND auth.uid() = ANY(participant_ids)
-    AND public.private_can_participate_in_school_chat(school_id, auth.uid())
+    AND public.auth_can_current_user_participate_in_school_chat(school_id)
 );
 
 DROP POLICY IF EXISTS p_convs_select ON public.conversations;
@@ -174,7 +188,7 @@ FOR INSERT WITH CHECK (
         FROM public.conversations c
         WHERE c.id = conversation_id
           AND auth.uid() = ANY(c.participant_ids)
-          AND public.private_can_participate_in_school_chat(c.school_id, auth.uid())
+          AND public.auth_can_current_user_participate_in_school_chat(c.school_id)
     )
 );
 
@@ -201,3 +215,6 @@ COMMENT ON FUNCTION public.guard_message_integrity()
 IS 'Enforces sender identity and initializes read_by to the sender only.';
 
 -- End migration 008. Static proposal only; not executed.
+
+COMMENT ON FUNCTION public.auth_can_current_user_participate_in_school_chat(uuid)
+IS 'RLS-safe predicate limited to the authenticated caller; cannot query another user ID.';
