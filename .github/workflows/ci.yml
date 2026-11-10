@@ -85,3 +85,4 @@ jobs:
           path: |
             app/build/app/outputs/flutter-apk/app-release.apk
             app/build/app/outputs/bundle/release/app-release.aab
+

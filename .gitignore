@@ -1,0 +1,46 @@
+# ==============================================================================
+# MADRASI — Git Ignore Configuration
+# Protect secrets, credentials, environment files and build outputs
+# ==============================================================================
+
+# Environment files and credentials (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env.*
+!.env.example
+*.env
+*.keystore
+*.jks
+*.key
+*.p8
+*.p12
+*.pem
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# Flutter & Dart builds
+**/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/coverage/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.lock
+.idea/
+*.iml
+.vscode/
+
+# Local logs and temp
+*.log
+supabase/.temp/
+.temp/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

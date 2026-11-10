@@ -46,3 +46,13 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+service-account*.json
+google-services.json
+GoogleService-Info.plist
