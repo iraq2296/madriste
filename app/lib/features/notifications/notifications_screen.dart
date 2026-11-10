@@ -5,7 +5,6 @@ import '../../core/l10n/l10n.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/empty_state.dart';
-import '../../data/models/models.dart';
 import '../../data/providers/providers.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -142,3 +141,4 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     );
   }
 }
+

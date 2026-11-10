@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/l10n.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../data/models/models.dart';
@@ -234,3 +233,4 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 }
+

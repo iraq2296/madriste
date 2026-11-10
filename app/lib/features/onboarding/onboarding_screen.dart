@@ -182,3 +182,4 @@ class _OnboardingData {
   final IconData icon;
   final Color accentColor;
 }
+

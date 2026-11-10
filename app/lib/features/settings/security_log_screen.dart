@@ -54,3 +54,4 @@ class SecurityLogScreen extends ConsumerWidget {
     );
   }
 }
+

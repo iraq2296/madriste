@@ -32,3 +32,4 @@ IconData attendanceIcon(AttendanceStatus status) => switch (status) {
       AttendanceStatus.late => Icons.access_time_filled_rounded,
       AttendanceStatus.excused => Icons.event_available_rounded,
     };
+

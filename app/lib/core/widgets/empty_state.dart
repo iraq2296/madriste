@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/l10n.dart';
 import '../theme/app_colors.dart';
 
 class EmptyState extends StatelessWidget {
@@ -68,3 +67,4 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+

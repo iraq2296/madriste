@@ -26,8 +26,9 @@ class _ParentDashboardState extends ConsumerState<ParentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    final rawUser = ref.watch(currentUserProvider);
     final store = ref.watch(dataStoreProvider);
+    final user = (rawUser.role == UserRole.parent) ? rawUser : (store.userById('p1') ?? rawUser);
     final children = store.childrenOf(user.id);
 
     // Default to first child if not selected

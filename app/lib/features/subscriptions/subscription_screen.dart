@@ -276,3 +276,4 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     );
   }
 }
+

@@ -80,11 +80,15 @@ class SessionController extends StateNotifier<SessionState> {
 
 final sessionProvider = StateNotifierProvider<SessionController, SessionState>((ref) => SessionController(ref));
 
-/// Current user (throws if used outside an authenticated area).
+/// Current user (with preview fallback if browsing in preview mode).
 final currentUserProvider = Provider<AppUser>((ref) {
   final user = ref.watch(sessionProvider).user;
-  if (user == null) throw StateError('No authenticated user');
-  return user;
+  if (user != null) return user;
+  if (Env.isPreview) {
+    final store = ref.watch(dataStoreProvider);
+    return store.userById('s1') ?? (store.users.isNotEmpty ? store.users.first : throw StateError('No user'));
+  }
+  throw StateError('No authenticated user');
 });
 
 /// True when a paid account's subscription has ended → read-only mode.

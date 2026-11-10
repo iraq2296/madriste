@@ -7,8 +7,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/app_avatar.dart';
-import '../../core/widgets/empty_state.dart';
-import '../../core/widgets/role_badge.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/verified_badge.dart';
 import '../../data/models/models.dart';
@@ -28,8 +26,9 @@ class _OwnerDashboardState extends ConsumerState<OwnerDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    final rawUser = ref.watch(currentUserProvider);
     final store = ref.watch(dataStoreProvider);
+    final user = (rawUser.role == UserRole.superAdmin) ? rawUser : (store.userById('owner') ?? rawUser);
 
     return Scaffold(
       body: SafeArea(
@@ -356,7 +355,6 @@ class _OwnerDashboardState extends ConsumerState<OwnerDashboard> {
         itemBuilder: (context, i) {
           final u = users[i];
           final isBlocked = u.status == AccountStatus.blocked;
-          final isDisabled = u.status == AccountStatus.disabled;
 
           return Card(
             child: ListTile(
@@ -733,3 +731,4 @@ class _OwnerDashboardState extends ConsumerState<OwnerDashboard> {
     );
   }
 }
+

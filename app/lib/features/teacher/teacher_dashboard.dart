@@ -10,7 +10,6 @@ import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/read_only_banner.dart';
 import '../../core/widgets/stat_card.dart';
-import '../../core/widgets/ui_helpers.dart';
 import '../../data/models/models.dart';
 import '../../data/providers/providers.dart';
 
@@ -26,10 +25,12 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    final rawUser = ref.watch(currentUserProvider);
     final session = ref.watch(sessionProvider);
     final store = ref.watch(dataStoreProvider);
     final isReadOnly = ref.watch(readOnlyProvider);
+
+    final user = (rawUser.role.isTeaching) ? rawUser : (store.userById('t1') ?? rawUser);
 
     final schools = store.schoolsOf(user.id);
     final currentSchool = store.schoolById(session.activeSchoolId) ?? schools.firstOrNull;
@@ -1071,3 +1072,4 @@ class _AttendanceRecorderViewState extends State<_AttendanceRecorderView> {
     );
   }
 }
+

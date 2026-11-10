@@ -26,9 +26,11 @@ class _ManagerDashboardState extends ConsumerState<ManagerDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    final rawUser = ref.watch(currentUserProvider);
     final store = ref.watch(dataStoreProvider);
     final isReadOnly = ref.watch(readOnlyProvider);
+
+    final user = (rawUser.role == UserRole.manager) ? rawUser : (store.userById('mgr1') ?? rawUser);
 
     // The school this manager manages
     final school = store.schools.firstWhere(
@@ -696,3 +698,4 @@ class _ManagerDashboardState extends ConsumerState<ManagerDashboard> {
     );
   }
 }
+

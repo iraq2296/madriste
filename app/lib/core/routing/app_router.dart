@@ -1,9 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/models/models.dart';
-import '../../data/providers/providers.dart';
 import '../../features/auth/account_recovery_screen.dart';
 import '../../features/auth/face_verification_screen.dart';
 import '../../features/auth/login_screen.dart';
@@ -160,3 +158,4 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+

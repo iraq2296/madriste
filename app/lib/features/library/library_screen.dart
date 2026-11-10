@@ -19,7 +19,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchCtrl = TextEditingController();
   SchoolStage _selectedStage = SchoolStage.preparatory;
   int _selectedGrade = 5;
-  String? _selectedSubjectId;
   int _selectedRound = 1; // 1, 2, 3 for ministerial exams
 
   @override
@@ -32,7 +31,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final store = ref.watch(dataStoreProvider);
-    final theme = Theme.of(context);
 
     final userFavorites = store.favorites[user.id] ?? <String>{};
 
@@ -398,3 +396,4 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 }
+

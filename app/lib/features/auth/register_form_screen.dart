@@ -175,7 +175,6 @@ class _RegisterFormScreenState extends ConsumerState<RegisterFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final store = ref.watch(dataStoreProvider);
 
     return Scaffold(
@@ -441,3 +440,4 @@ class _RegisterFormScreenState extends ConsumerState<RegisterFormScreen> {
     );
   }
 }
+

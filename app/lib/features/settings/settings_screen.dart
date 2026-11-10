@@ -6,7 +6,6 @@ import '../../core/config/env.dart';
 import '../../core/l10n/l10n.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/role_badge.dart';
 import '../../data/models/models.dart';
@@ -21,7 +20,6 @@ class SettingsScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final settings = ref.watch(appSettingsProvider);
     final store = ref.watch(dataStoreProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(

@@ -528,3 +528,4 @@ CREATE POLICY messages_insert ON messages FOR INSERT WITH CHECK (
         WHERE c.id = conversation_id AND auth.uid() = ANY(c.participant_ids)
     )
 );
+

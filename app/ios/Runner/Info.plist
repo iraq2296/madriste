@@ -7,7 +7,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Madrasi</string>
+	<string>مَدرَستي</string>
+	<key>NSCameraUsageDescription</key>
+	<string>يلزم الوصول إلى الكاميرا للتحقق الحي من الوجه والتقاط صور السبورة والواجبات المدرسية.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يلزم الوصول إلى الميكروفون للمشاركة في الاجتماعات والمكالمات المدرسية الصوتية والمرئية.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يلزم الوصول إلى الصور لرفع الوثائق المدرسية والبطاقة الوطنية وصورة الحساب.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>يُستخدم التعرف على الوجه لتأمين وقفل التطبيق اختيارياً.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

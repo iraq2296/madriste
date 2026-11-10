@@ -238,3 +238,4 @@ class _FaceVerificationScreenState extends ConsumerState<FaceVerificationScreen>
     );
   }
 }
+

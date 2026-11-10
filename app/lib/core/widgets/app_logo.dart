@@ -174,3 +174,4 @@ class _LogoPainter extends CustomPainter {
   bool shouldRepaint(_LogoPainter oldDelegate) =>
       oldDelegate.color != color || oldDelegate.accentColor != accentColor;
 }
+
