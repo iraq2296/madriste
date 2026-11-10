@@ -198,25 +198,24 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT p.role INTO v_profile_role
-    FROM public.profiles p WHERE p.id = NEW.user_id;
-
-    IF v_profile_role IS NULL OR v_profile_role NOT IN ('teacher', 'instructor', 'student', 'parent') THEN
-        RAISE EXCEPTION 'SECURITY_VIOLATION: unsupported membership profile role';
-    END IF;
-
-    IF NEW.role IS DISTINCT FROM v_profile_role THEN
-        RAISE EXCEPTION 'SECURITY_VIOLATION: membership role must match trusted profile role';
-    END IF;
-
     IF TG_OP = 'INSERT' THEN
         IF public.auth_is_manager_of_school(NEW.school_id) THEN
-            IF NEW.status NOT IN ('pending', 'invited') THEN
-                RAISE EXCEPTION 'SECURITY_VIOLATION: manager-created membership must start pending or invited';
+            SELECT p.role INTO v_profile_role
+            FROM public.profiles p WHERE p.id = NEW.user_id;
+            IF v_profile_role IS NULL
+               OR v_profile_role NOT IN ('teacher', 'instructor', 'student', 'parent')
+               OR NEW.role IS DISTINCT FROM v_profile_role
+               OR NEW.status NOT IN ('pending', 'invited') THEN
+                RAISE EXCEPTION 'SECURITY_VIOLATION: invalid manager-created membership';
             END IF;
             RETURN NEW;
         END IF;
         NEW.user_id := auth.uid();
+        SELECT p.role INTO v_profile_role
+        FROM public.profiles p WHERE p.id = NEW.user_id;
+        IF v_profile_role IS NULL OR v_profile_role NOT IN ('teacher', 'instructor', 'student', 'parent') THEN
+            RAISE EXCEPTION 'SECURITY_VIOLATION: unsupported membership profile role';
+        END IF;
         NEW.role := v_profile_role;
         NEW.status := 'pending';
         NEW.class_group_ids := ARRAY[]::uuid[];
