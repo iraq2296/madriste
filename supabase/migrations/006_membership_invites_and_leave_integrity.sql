@@ -59,8 +59,8 @@ BEGIN
 
         SELECT EXISTS (
             SELECT 1
-            FROM unnest(NEW.recipient_ids) AS recipient_id
-            WHERE NOT public.auth_is_school_workflow_staff(NEW.school_id, recipient_id)
+            FROM unnest(NEW.recipient_ids) AS recipients(user_id)
+            WHERE NOT public.auth_is_school_workflow_staff(NEW.school_id, recipients.user_id)
         ) INTO v_invalid_recipient;
 
         IF v_invalid_recipient THEN
